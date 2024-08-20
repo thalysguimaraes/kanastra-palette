@@ -40,7 +40,7 @@ Returns an object with the color palette, containing shades from 50 to 900.
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request on our [GitHub repository](link-to-your-repository).
+Contributions are welcome! Please open an issue or submit a pull request on our [GitHub repository](https://github.com/thalysguimaraes/kanastra-palette).
 
 ## License
 
