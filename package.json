@@ -1,0 +1,19 @@
+{
+  "name": "kanastra-palette",
+  "version": "0.0.1",
+  "description": "Generate color palettes with dynamic base step",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": ["color", "palette", "tailwind"],
+  "author": "Thalys Guimarães",
+  "license": "MIT",
+  "dependencies": {
+    "chroma-js": "^2.4.2"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  }
+}
