@@ -1,0 +1,53 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+
+# Generated files
+*.css
+*.json
+*.js
+/output/
+/exports/
+
+# Environment files
+.env
+.env.*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Logs
+*.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor backups
+*.bak
+*~
+*.orig
+
+# Test coverage
+*.profraw
+*.profdata
+/coverage/
+
+# Debug files
+*.pdb
