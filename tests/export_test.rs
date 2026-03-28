@@ -1,5 +1,7 @@
 use kanastra_palette_rs::export::{ExportFormat, ExportOptions};
-use kanastra_palette_rs::{parse_hex_color, ColorPalette, PaletteAlgorithm, PALETTE_STEPS};
+use kanastra_palette_rs::{
+    parse_hex_color, ColorPalette, PaletteAccessibility, PaletteAlgorithm, PALETTE_STEPS,
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -27,6 +29,7 @@ fn sample_palette(base_step: u16) -> ColorPalette {
         base_color: *steps.get(&base_step).unwrap(),
         base_step,
         algorithm: PaletteAlgorithm::Oklch,
+        accessibility: PaletteAccessibility::new(&steps, base_step),
         steps,
     }
 }
@@ -49,6 +52,7 @@ fn test_tailwind_v3_export_has_valid_default_property() {
 
     assert!(output.contains("        brand: {\n"));
     assert!(output.contains("          DEFAULT: '#475569',\n"));
+    assert!(output.contains("        'on-brand': '#ffffff',\n"));
     assert!(!output.contains("500 DEFAULT"));
 }
 
@@ -67,6 +71,7 @@ fn test_tailwind_v4_export_uses_oklch_values_and_base_alias() {
     assert!(output.contains("--color-brand-50: oklch("));
     assert!(output.contains("/* #f8fafc */"));
     assert!(output.contains("--color-brand: var(--color-brand-600);"));
+    assert!(output.contains("--color-on-brand: oklch("));
 }
 
 #[test]
@@ -84,6 +89,7 @@ fn test_css_export_tracks_custom_name_and_default_step() {
     assert!(output.contains("--color-brand-600: #475569;"));
     assert!(output.contains("--color-brand: var(--color-brand-600);"));
     assert!(output.contains("--color-brand-rgb: var(--color-brand-600-rgb);"));
+    assert!(output.contains("--color-on-brand: #ffffff;"));
 }
 
 #[test]
@@ -103,4 +109,31 @@ fn test_json_export_includes_metadata_and_default_step() {
     assert_eq!(json["defaultStep"], 600);
     assert_eq!(json["metadata"]["algorithm"], "oklch");
     assert_eq!(json["colors"]["600"]["hex"], "#475569");
+    assert_eq!(
+        json["colors"]["600"]["accessibility"]["recommendedForeground"]["hex"],
+        "#ffffff"
+    );
+    assert_eq!(json["semanticTokens"]["on-brand"]["hex"], "#ffffff");
+}
+
+#[test]
+fn test_design_tokens_export_uses_alias_and_semantic_foreground() {
+    let palette = sample_palette(600);
+    let output = ExportFormat::DesignTokens
+        .export_with_options(
+            &palette,
+            &ExportOptions {
+                name: String::from("brand"),
+            },
+        )
+        .unwrap();
+    let json: Value = serde_json::from_str(&output).unwrap();
+
+    assert_eq!(json["color"]["brand"]["600"]["$value"], "#475569");
+    assert_eq!(
+        json["color"]["semantic"]["brand"]["$value"],
+        "{color.brand.600}"
+    );
+    assert_eq!(json["color"]["semantic"]["on-brand"]["$value"], "#ffffff");
+    assert_eq!(json["metadata"]["format"], "design-tokens-v1");
 }

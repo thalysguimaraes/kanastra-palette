@@ -37,6 +37,18 @@ impl Exporter for CssExporter {
                 "  --color-{}-rgb: var(--color-{}-{}-rgb);\n",
                 token_name, token_name, palette.base_step
             ));
+            let (r, g, b) = rgb8(&palette.accessibility.default_foreground.color);
+            css.push_str("  \n");
+            css.push_str("  /* Accessibility suggestion for the default token */\n");
+            css.push_str(&format!(
+                "  --color-on-{}: {};\n",
+                token_name,
+                palette.accessibility.default_foreground.hex()
+            ));
+            css.push_str(&format!(
+                "  --color-on-{}-rgb: {} {} {};\n",
+                token_name, r, g, b
+            ));
         }
 
         css.push_str("}\n\n");
@@ -55,6 +67,12 @@ impl Exporter for CssExporter {
         css.push_str(&format!(
             " * background-color: rgba(var(--color-{}-rgb) / 0.5);\n",
             token_name
+        ));
+        css.push_str(&format!(
+            " * color: var(--color-on-{}); /* {:.2}:1 {} */\n",
+            token_name,
+            palette.accessibility.default_foreground.contrast_ratio,
+            palette.accessibility.default_foreground.compliance.rating()
         ));
         css.push_str(" */\n");
 

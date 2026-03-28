@@ -1,4 +1,5 @@
 pub mod css;
+pub mod design_tokens;
 pub mod json;
 pub mod tailwind;
 
@@ -24,6 +25,7 @@ pub trait Exporter {
 
 pub enum ExportFormat {
     Css,
+    DesignTokens,
     Json,
     TailwindV3,
     TailwindV4,
@@ -41,6 +43,9 @@ impl ExportFormat {
     ) -> Result<String> {
         match self {
             ExportFormat::Css => css::CssExporter.export(palette, options),
+            ExportFormat::DesignTokens => {
+                design_tokens::DesignTokensExporter.export(palette, options)
+            }
             ExportFormat::Json => json::JsonExporter.export(palette, options),
             ExportFormat::TailwindV3 => tailwind::TailwindV3Exporter.export(palette, options),
             ExportFormat::TailwindV4 => tailwind::TailwindV4Exporter.export(palette, options),

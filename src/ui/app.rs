@@ -63,6 +63,7 @@ impl App {
         match key.code {
             KeyCode::Esc => self.state = AppState::ColorInput,
             KeyCode::Char('c') | KeyCode::Char('C') => self.export_css(),
+            KeyCode::Char('d') | KeyCode::Char('D') => self.export_design_tokens(),
             KeyCode::Char('3') => self.export_tailwind_v3(),
             KeyCode::Char('4') => self.export_tailwind_v4(),
             KeyCode::Char('j') | KeyCode::Char('J') => self.export_json(),
@@ -113,6 +114,16 @@ impl App {
                 .export_with_options(palette, &self.export_options)
             {
                 self.copy_to_clipboard(content, "Tailwind v3");
+            }
+        }
+    }
+
+    fn export_design_tokens(&mut self) {
+        if let Some(palette) = &self.current_palette {
+            if let Ok(content) = crate::export::ExportFormat::DesignTokens
+                .export_with_options(palette, &self.export_options)
+            {
+                self.copy_to_clipboard(content, "Design Tokens");
             }
         }
     }
