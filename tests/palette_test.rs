@@ -1,6 +1,6 @@
 use kanastra_palette_rs::{
-    format_hex_color, parse_hex_color, suggest_foreground, ColorPalette, PaletteAlgorithm,
-    PaletteOptions, PALETTE_STEPS,
+    format_hex_color, get_preset, parse_hex_color, suggest_foreground, ColorPalette,
+    PaletteAlgorithm, PaletteOptions, PALETTE_STEPS,
 };
 use palette::{IntoColor, Oklch};
 
@@ -86,4 +86,11 @@ fn test_accessibility_prefers_black_on_light_backgrounds() {
 
     assert_eq!(suggestion.hex(), "#000000");
     assert!(suggestion.compliance.aaa_normal);
+}
+
+#[test]
+fn test_named_presets_are_case_insensitive() {
+    let preset = get_preset("ROYAL-VIOLET").unwrap();
+
+    assert_eq!(preset.hex, "#7953E0");
 }
