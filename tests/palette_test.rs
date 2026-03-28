@@ -1,27 +1,49 @@
-use kanastra_palette_rs::{ColorPalette, PaletteGenerator, PaletteOptions};
-use palette::Srgb;
+use kanastra_palette_rs::{
+    format_hex_color, ColorPalette, PaletteAlgorithm, PaletteOptions, PALETTE_STEPS,
+};
+use palette::{IntoColor, Oklch};
 
 #[test]
-fn test_palette_generation() {
+fn test_palette_generation_preserves_input_at_default_step() {
     let palette = ColorPalette::new("#0066CC").unwrap();
-    assert_eq!(palette.steps.len(), 11);
-    
-    // Verify all expected steps are present
-    let expected_steps = vec![50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
-    for step in expected_steps {
-        assert!(palette.steps.contains_key(&step));
-    }
+
+    assert_eq!(palette.steps.len(), PALETTE_STEPS.len());
+    assert_eq!(palette.base_step, 500);
+    assert_eq!(format_hex_color(&palette.base_color), "#0066cc");
+    assert_eq!(
+        format_hex_color(palette.steps.get(&500).unwrap()),
+        "#0066cc"
+    );
 }
 
 #[test]
-fn test_hex_to_rgb_conversion() {
-    let palette = ColorPalette::new("#FF0000").unwrap();
-    let base = palette.base_color;
-    
-    // Red color should have max red, no green or blue
-    assert!((base.red - 1.0).abs() < 0.01);
-    assert!(base.green < 0.01);
-    assert!(base.blue < 0.01);
+fn test_short_hex_color_is_supported_by_core_parser() {
+    let palette = ColorPalette::new("#abc").unwrap();
+
+    assert_eq!(format_hex_color(&palette.base_color), "#aabbcc");
+    assert_eq!(
+        format_hex_color(palette.steps.get(&500).unwrap()),
+        "#aabbcc"
+    );
+}
+
+#[test]
+fn test_custom_anchor_step_preserves_input_color() {
+    let palette = ColorPalette::new_with_options(
+        "#FF0000",
+        &PaletteOptions {
+            anchor_step: 600,
+            algorithm: PaletteAlgorithm::Oklch,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(palette.base_step, 600);
+    assert_eq!(format_hex_color(&palette.base_color), "#ff0000");
+    assert_eq!(
+        format_hex_color(palette.steps.get(&600).unwrap()),
+        "#ff0000"
+    );
 }
 
 #[test]
@@ -32,36 +54,17 @@ fn test_invalid_hex_color() {
 }
 
 #[test]
-fn test_luminance_calculation() {
-    let generator = PaletteGenerator::new();
-    
-    // Test with known color
-    let blue = Srgb::new(0.0, 0.4, 0.8);
-    let _palette = generator.generate_palette(&blue, &PaletteOptions::default());
-    
-    // Blue with these values should map to around step 500-600
-    let base_step = generator.find_base_step(&blue);
-    // Let's see what the actual value is
-    println!("Base step for blue(0.0, 0.4, 0.8): {}", base_step);
-    assert!(base_step >= 300 && base_step <= 700);
-}
+fn test_lightness_is_monotonic_across_steps() {
+    let palette = ColorPalette::new("#0066CC").unwrap();
+    let mut previous_lightness = f32::MAX;
 
-#[test] 
-fn test_oklab_generation() {
-    let generator = PaletteGenerator::new();
-    let blue = Srgb::new(0.0, 0.4, 0.8);
-    
-    let options = PaletteOptions { use_oklab: true };
-    let palette = generator.generate_palette(&blue, &options);
-    
-    assert_eq!(palette.len(), 11);
-    
-    // Verify colors get progressively lighter/darker
-    let light = palette.get(&100).unwrap();
-    let dark = palette.get(&900).unwrap();
-    
-    // Light color should have higher RGB values than dark
-    assert!(light.red > dark.red);
-    assert!(light.green > dark.green);
-    assert!(light.blue > dark.blue);
+    for step in PALETTE_STEPS {
+        let color = palette.steps.get(&step).unwrap();
+        let oklch: Oklch = (*color).into_color();
+        assert!(
+            oklch.l <= previous_lightness + 0.001,
+            "step {step} should not be lighter than the previous step"
+        );
+        previous_lightness = oklch.l;
+    }
 }
