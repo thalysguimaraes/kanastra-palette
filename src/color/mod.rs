@@ -1,4 +1,6 @@
+pub mod accessibility;
 pub mod palette;
+pub mod presets;
 
 use ::palette::rgb::Srgb;
 use anyhow::{bail, Result};

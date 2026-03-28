@@ -8,8 +8,8 @@ use crossterm::{
 use kanastra_palette_rs::export::{ExportFormat, ExportOptions};
 use kanastra_palette_rs::ui::{App, AppState};
 use kanastra_palette_rs::{
-    format_hex_color, is_palette_step, parse_hex_color, rgb8, ColorPalette, PaletteAlgorithm,
-    PaletteOptions, PALETTE_STEPS,
+    format_hex_color, get_preset, is_palette_step, parse_hex_color, rgb8, ColorPalette,
+    PaletteAlgorithm, PaletteOptions, PALETTE_PRESETS, PALETTE_STEPS,
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -24,6 +24,7 @@ use std::{fs, io, path::PathBuf, time::Duration};
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum CliFormat {
     Css,
+    DesignTokens,
     Json,
     TailwindV3,
     TailwindV4,
@@ -33,6 +34,7 @@ impl From<CliFormat> for ExportFormat {
     fn from(value: CliFormat) -> Self {
         match value {
             CliFormat::Css => Self::Css,
+            CliFormat::DesignTokens => Self::DesignTokens,
             CliFormat::Json => Self::Json,
             CliFormat::TailwindV3 => Self::TailwindV3,
             CliFormat::TailwindV4 => Self::TailwindV4,
@@ -58,6 +60,10 @@ impl From<CliAlgorithm> for PaletteAlgorithm {
 struct Args {
     #[arg(short, long, help = "Base color in hex format (#RGB or #RRGGBB)")]
     color: Option<String>,
+    #[arg(long, help = "Start from a named preset instead of a raw hex color")]
+    preset: Option<String>,
+    #[arg(long, help = "List the available presets and exit")]
+    list_presets: bool,
     #[arg(long, value_enum, help = "Run in non-interactive export mode")]
     format: Option<CliFormat>,
     #[arg(
@@ -79,6 +85,13 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
+    if args.list_presets {
+        print_presets();
+        return Ok(());
+    }
+
+    validate_args(&args)?;
+
     if let Some(format) = args.format {
         return run_export(args, format);
     }
@@ -98,7 +111,7 @@ fn run_tui(args: Args) -> Result<()> {
     let palette_options = palette_options_from_args(&args);
     let export_options = export_options_from_args(&args);
     let mut app = App::with_options(palette_options, export_options);
-    if let Some(color) = args.color {
+    if let Some(color) = resolve_input_color(&args)? {
         app.color_input = color;
     }
 
@@ -121,11 +134,9 @@ fn run_tui(args: Args) -> Result<()> {
 }
 
 fn run_export(args: Args, format: CliFormat) -> Result<()> {
-    let color = args
-        .color
-        .as_deref()
-        .context("--color is required when using --format")?;
-    let palette = ColorPalette::new_with_options(color, &palette_options_from_args(&args))?;
+    let color = resolve_input_color(&args)?
+        .context("--color or --preset is required when using --format")?;
+    let palette = ColorPalette::new_with_options(&color, &palette_options_from_args(&args))?;
     let output = ExportFormat::from(format)
         .export_with_options(&palette, &export_options_from_args(&args))?;
 
@@ -266,6 +277,13 @@ fn render_palette_screen(f: &mut Frame, app: &App) {
             ),
             Span::raw(" CSS   "),
             Span::styled(
+                "[D]",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Design Tokens   "),
+            Span::styled(
                 "[3]",
                 Style::default()
                     .fg(Color::Yellow)
@@ -324,31 +342,58 @@ fn render_palette_screen(f: &mut Frame, app: &App) {
 fn render_palette_colors(f: &mut Frame, palette: &kanastra_palette_rs::ColorPalette, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Color Palette ")
+        .title(" Color Palette (* base) ")
         .style(Style::default().fg(Color::Cyan));
 
     let mut rows = Vec::new();
 
     for step in PALETTE_STEPS {
         if let Some(color) = palette.steps.get(&step) {
+            let accessibility = palette.accessibility.steps.get(&step).unwrap();
             let hex = format_hex_color(color);
             let (r, g, b) = rgb8(color);
             let color_preview = Color::Rgb(r, g, b);
+            let on_hex = accessibility.suggested_foreground.hex();
+            let (on_r, on_g, on_b) = rgb8(&accessibility.suggested_foreground.color);
+            let on_preview = Color::Rgb(on_r, on_g, on_b);
+            let step_label = if step == palette.base_step {
+                format!("*{:>3}", step)
+            } else {
+                format!("{:>4}", step)
+            };
+            let contrast_label = format!(
+                "{:.2}:1 {}",
+                accessibility.suggested_foreground.contrast_ratio,
+                accessibility.suggested_foreground.compliance.rating()
+            );
 
             // Create color block with proper spacing
             let color_block = "████████████████";
 
-            rows.push(Row::new(vec![
-                Cell::from(format!("{:>4}", step)).style(Style::default().fg(Color::Gray)),
-                Cell::from(color_block).style(Style::default().fg(color_preview).bg(color_preview)),
-                Cell::from(hex.clone()).style(
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Cell::from(format!("rgb({}, {}, {})", r, g, b))
-                    .style(Style::default().fg(Color::DarkGray)),
-            ]));
+            let row_style = if step == palette.base_step {
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+
+            rows.push(
+                Row::new(vec![
+                    Cell::from(step_label).style(Style::default().fg(Color::Gray)),
+                    Cell::from(color_block)
+                        .style(Style::default().fg(color_preview).bg(color_preview)),
+                    Cell::from(hex.clone()).style(
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Cell::from("██████").style(Style::default().fg(on_preview).bg(on_preview)),
+                    Cell::from(on_hex).style(Style::default().fg(Color::White)),
+                    Cell::from(contrast_label).style(Style::default().fg(Color::DarkGray)),
+                ])
+                .style(row_style),
+            );
         }
     }
 
@@ -358,7 +403,9 @@ fn render_palette_colors(f: &mut Frame, palette: &kanastra_palette_rs::ColorPale
             Constraint::Length(6),  // Step number
             Constraint::Length(18), // Color block
             Constraint::Length(9),  // Hex
-            Constraint::Length(20), // RGB
+            Constraint::Length(8),  // On color swatch
+            Constraint::Length(9),  // On color hex
+            Constraint::Length(14), // Contrast and WCAG rating
         ],
     )
     .block(block)
@@ -392,5 +439,41 @@ fn palette_options_from_args(args: &Args) -> PaletteOptions {
 fn export_options_from_args(args: &Args) -> ExportOptions {
     ExportOptions {
         name: args.name.clone(),
+    }
+}
+
+fn validate_args(args: &Args) -> Result<()> {
+    if args.color.is_some() && args.preset.is_some() {
+        anyhow::bail!("Use either --color or --preset, not both");
+    }
+
+    if let Some(preset) = &args.preset {
+        if get_preset(preset).is_none() {
+            anyhow::bail!(
+                "Unknown preset '{}'. Use --list-presets to inspect the available names",
+                preset
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn resolve_input_color(args: &Args) -> Result<Option<String>> {
+    if let Some(color) = &args.color {
+        return Ok(Some(color.clone()));
+    }
+
+    if let Some(preset_name) = &args.preset {
+        let preset = get_preset(preset_name).context("preset lookup failed")?;
+        return Ok(Some(String::from(preset.hex)));
+    }
+
+    Ok(None)
+}
+
+fn print_presets() {
+    for preset in PALETTE_PRESETS {
+        println!("{:<14} {}  {}", preset.name, preset.hex, preset.description);
     }
 }

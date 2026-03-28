@@ -1,5 +1,6 @@
 use kanastra_palette_rs::{
-    format_hex_color, ColorPalette, PaletteAlgorithm, PaletteOptions, PALETTE_STEPS,
+    format_hex_color, get_preset, parse_hex_color, suggest_foreground, ColorPalette,
+    PaletteAlgorithm, PaletteOptions, PALETTE_STEPS,
 };
 use palette::{IntoColor, Oklch};
 
@@ -67,4 +68,29 @@ fn test_lightness_is_monotonic_across_steps() {
         );
         previous_lightness = oklch.l;
     }
+}
+
+#[test]
+fn test_accessibility_prefers_white_on_dark_backgrounds() {
+    let background = parse_hex_color("#334155").unwrap();
+    let suggestion = suggest_foreground(&background);
+
+    assert_eq!(suggestion.hex(), "#ffffff");
+    assert!(suggestion.compliance.aa_normal);
+}
+
+#[test]
+fn test_accessibility_prefers_black_on_light_backgrounds() {
+    let background = parse_hex_color("#f8fafc").unwrap();
+    let suggestion = suggest_foreground(&background);
+
+    assert_eq!(suggestion.hex(), "#000000");
+    assert!(suggestion.compliance.aaa_normal);
+}
+
+#[test]
+fn test_named_presets_are_case_insensitive() {
+    let preset = get_preset("ROYAL-VIOLET").unwrap();
+
+    assert_eq!(preset.hex, "#7953E0");
 }

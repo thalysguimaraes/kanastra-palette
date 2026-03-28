@@ -30,7 +30,13 @@ impl Exporter for TailwindV3Exporter {
             ));
         }
 
-        js.push_str("        },\n      },\n    },\n  },\n};\n");
+        js.push_str("        },\n");
+        js.push_str(&format!(
+            "        'on-{}': '{}',\n",
+            token_name,
+            palette.accessibility.default_foreground.hex()
+        ));
+        js.push_str("      },\n    },\n  },\n};\n");
         Ok(js)
     }
 }
@@ -68,6 +74,17 @@ impl Exporter for TailwindV4Exporter {
             css.push_str(&format!(
                 "  --color-{}: var(--color-{}-{});\n",
                 token_name, token_name, palette.base_step
+            ));
+            let oklch: palette::Oklch = palette.accessibility.default_foreground.color.into_color();
+            css.push_str(&format!(
+                "  --color-on-{}: oklch({:.3} {:.3} {:.3}); /* {} {:.2}:1 {} */\n",
+                token_name,
+                oklch.l,
+                oklch.chroma,
+                oklch.hue.into_positive_degrees(),
+                palette.accessibility.default_foreground.hex(),
+                palette.accessibility.default_foreground.contrast_ratio,
+                palette.accessibility.default_foreground.compliance.rating()
             ));
         }
 

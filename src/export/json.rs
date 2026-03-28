@@ -12,6 +12,7 @@ impl Exporter for JsonExporter {
 
         for step in PALETTE_STEPS {
             if let Some(color) = palette.steps.get(&step) {
+                let accessibility = palette.accessibility.steps.get(&step).unwrap();
                 let (r, g, b) = rgb8(color);
                 let hex = format_hex_color(color);
 
@@ -46,6 +47,21 @@ impl Exporter for JsonExporter {
                         "c": format!("{:.3}", oklch_c),
                         "h": format!("{:.1}", oklch_h),
                         "string": format!("oklch({:.3} {:.3} {:.1})", oklch_l, oklch_c, oklch_h)
+                    },
+                    "accessibility": {
+                        "contrastOnWhite": format!("{:.2}", accessibility.contrast_against_white),
+                        "contrastOnBlack": format!("{:.2}", accessibility.contrast_against_black),
+                        "recommendedForeground": {
+                            "hex": accessibility.suggested_foreground.hex(),
+                            "contrast": format!("{:.2}", accessibility.suggested_foreground.contrast_ratio),
+                            "rating": accessibility.suggested_foreground.compliance.rating(),
+                            "wcag": {
+                                "aaNormal": accessibility.suggested_foreground.compliance.aa_normal,
+                                "aaaNormal": accessibility.suggested_foreground.compliance.aaa_normal,
+                                "aaLarge": accessibility.suggested_foreground.compliance.aa_large,
+                                "aaaLarge": accessibility.suggested_foreground.compliance.aaa_large
+                            }
+                        }
                     }
                 });
 
@@ -53,10 +69,23 @@ impl Exporter for JsonExporter {
             }
         }
 
+        let semantic_tokens = json!({
+            options.name.clone(): {
+                "step": palette.base_step,
+                "hex": format_hex_color(&palette.base_color)
+            },
+            format!("on-{}", options.name): {
+                "hex": palette.accessibility.default_foreground.hex(),
+                "contrast": format!("{:.2}", palette.accessibility.default_foreground.contrast_ratio),
+                "rating": palette.accessibility.default_foreground.compliance.rating()
+            }
+        });
+
         let output = json!({
             "name": options.name,
             "defaultStep": palette.base_step,
             "colors": colors,
+            "semanticTokens": semantic_tokens,
             "metadata": {
                 "format": "v2",
                 "algorithm": palette.algorithm.as_str(),
