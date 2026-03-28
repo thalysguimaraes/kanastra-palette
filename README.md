@@ -8,6 +8,7 @@ A blazing-fast terminal color palette generator built with Rust and Ratatui. Gen
 
 ### 🎯 Smart Palette Generation
 - **11-step color scales** (50-950) using perceptual color algorithms
+- **Input color preserved at step `500` by default** with configurable anchoring via `--base-step`
 - **OKLCH color space** for superior perceptual uniformity
 - **Dynamic lightness and chroma curves** for natural-looking palettes
 - **Hue shifting** for more vibrant color scales
@@ -15,8 +16,9 @@ A blazing-fast terminal color palette generator built with Rust and Ratatui. Gen
 ### 🚀 Modern Export Formats
 - **CSS Custom Properties** with RGB values for alpha support
 - **Tailwind CSS v3** - Traditional JS config format
-- **Tailwind CSS v4** - New CSS `@theme` format with OKLCH values
+- **Tailwind CSS v4** - New CSS `@theme` format with real OKLCH tokens
 - **JSON** with hex, RGB, HSL, and OKLCH color spaces
+- **Automation-friendly CLI** with `stdout` and file export support
 
 ### 💻 Beautiful Terminal UI
 - Interactive color input with live preview
@@ -83,6 +85,21 @@ cargo run
 cargo run -- --color "#FF6B6B"
 ```
 
+### Non-Interactive Mode
+
+```bash
+# Print CSS tokens to stdout
+cargo run -- --color "#FF6B6B" --format css
+
+# Write Tailwind v4 tokens to a file
+cargo run -- --color "#FF6B6B" --format tailwind-v4 --out ./palette.css
+
+# Export a custom token name and preserve the input at step 600
+cargo run -- --color "#FF6B6B" --format tailwind-v3 --name brand --base-step 600
+```
+
+By default, the input color is preserved at step `500`. If you override `--base-step`, the exported default token/alias follows that configured step.
+
 ### Keyboard Shortcuts
 
 | Key | Action |
@@ -106,6 +123,8 @@ cargo run -- --color "#FF6B6B"
   --color-primary-100: #e2d9ff;
   --color-primary-100-rgb: 226 217 255;
   /* ... */
+  --color-primary: var(--color-primary-500);
+  --color-primary-rgb: var(--color-primary-500-rgb);
 }
 ```
 
@@ -119,6 +138,7 @@ module.exports = {
           50: '#f0ebff',
           100: '#e2d9ff',
           // ...
+          500: '#7953e0',
           DEFAULT: '#7953e0',
         },
       },
@@ -132,9 +152,10 @@ module.exports = {
 @import "tailwindcss";
 
 @theme {
-  --color-primary-50: #f0ebff; /* oklch(0.978 0.031 305.2) */
-  --color-primary-100: #e2d9ff; /* oklch(0.936 0.062 305.4) */
+  --color-primary-50: oklch(0.978 0.031 305.2); /* #f0ebff */
+  --color-primary-100: oklch(0.936 0.062 305.4); /* #e2d9ff */
   /* ... */
+  --color-primary: var(--color-primary-500);
 }
 ```
 
@@ -164,6 +185,10 @@ module.exports = {
 ```bash
 # Development build
 cargo build
+
+# Format and lint
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
 
 # Release build
 cargo build --release
