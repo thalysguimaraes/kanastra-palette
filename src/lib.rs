@@ -7,6 +7,7 @@ pub use color::accessibility::{
     PaletteAccessibility, StepAccessibility,
 };
 pub use color::palette::{ColorStep, PaletteAlgorithm, PaletteGenerator, PaletteOptions};
+pub use color::presets::{get_preset, PalettePreset, PALETTE_PRESETS};
 pub use color::{format_hex_color, is_palette_step, parse_hex_color, rgb8, PALETTE_STEPS};
 
 use palette::Srgb;

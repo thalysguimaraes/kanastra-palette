@@ -94,6 +94,9 @@ cargo run -- --color "#FF6B6B"
 # Print CSS tokens to stdout
 cargo run -- --color "#FF6B6B" --format css
 
+# Or start from a named preset
+cargo run -- --preset kanastra-green --format css
+
 # Print design tokens JSON
 cargo run -- --color "#FF6B6B" --format design-tokens
 
@@ -105,6 +108,15 @@ cargo run -- --color "#FF6B6B" --format tailwind-v3 --name brand --base-step 600
 ```
 
 By default, the input color is preserved at step `500`. If you override `--base-step`, the exported default token/alias follows that configured step.
+
+### Presets
+
+```bash
+# List available presets
+cargo run -- --list-presets
+```
+
+Available seeds include `kanastra-green`, `royal-violet`, `ocean-blue`, `ember-orange`, `rose-magenta`, and `slate-neutral`.
 
 ### Keyboard Shortcuts
 
