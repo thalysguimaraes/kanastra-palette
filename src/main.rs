@@ -24,6 +24,7 @@ use std::{fs, io, path::PathBuf, time::Duration};
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum CliFormat {
     Css,
+    DesignTokens,
     Json,
     TailwindV3,
     TailwindV4,
@@ -33,6 +34,7 @@ impl From<CliFormat> for ExportFormat {
     fn from(value: CliFormat) -> Self {
         match value {
             CliFormat::Css => Self::Css,
+            CliFormat::DesignTokens => Self::DesignTokens,
             CliFormat::Json => Self::Json,
             CliFormat::TailwindV3 => Self::TailwindV3,
             CliFormat::TailwindV4 => Self::TailwindV4,
@@ -266,6 +268,13 @@ fn render_palette_screen(f: &mut Frame, app: &App) {
             ),
             Span::raw(" CSS   "),
             Span::styled(
+                "[D]",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Design Tokens   "),
+            Span::styled(
                 "[3]",
                 Style::default()
                     .fg(Color::Yellow)
@@ -324,31 +333,58 @@ fn render_palette_screen(f: &mut Frame, app: &App) {
 fn render_palette_colors(f: &mut Frame, palette: &kanastra_palette_rs::ColorPalette, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Color Palette ")
+        .title(" Color Palette (* base) ")
         .style(Style::default().fg(Color::Cyan));
 
     let mut rows = Vec::new();
 
     for step in PALETTE_STEPS {
         if let Some(color) = palette.steps.get(&step) {
+            let accessibility = palette.accessibility.steps.get(&step).unwrap();
             let hex = format_hex_color(color);
             let (r, g, b) = rgb8(color);
             let color_preview = Color::Rgb(r, g, b);
+            let on_hex = accessibility.suggested_foreground.hex();
+            let (on_r, on_g, on_b) = rgb8(&accessibility.suggested_foreground.color);
+            let on_preview = Color::Rgb(on_r, on_g, on_b);
+            let step_label = if step == palette.base_step {
+                format!("*{:>3}", step)
+            } else {
+                format!("{:>4}", step)
+            };
+            let contrast_label = format!(
+                "{:.2}:1 {}",
+                accessibility.suggested_foreground.contrast_ratio,
+                accessibility.suggested_foreground.compliance.rating()
+            );
 
             // Create color block with proper spacing
             let color_block = "████████████████";
 
-            rows.push(Row::new(vec![
-                Cell::from(format!("{:>4}", step)).style(Style::default().fg(Color::Gray)),
-                Cell::from(color_block).style(Style::default().fg(color_preview).bg(color_preview)),
-                Cell::from(hex.clone()).style(
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Cell::from(format!("rgb({}, {}, {})", r, g, b))
-                    .style(Style::default().fg(Color::DarkGray)),
-            ]));
+            let row_style = if step == palette.base_step {
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+
+            rows.push(
+                Row::new(vec![
+                    Cell::from(step_label).style(Style::default().fg(Color::Gray)),
+                    Cell::from(color_block)
+                        .style(Style::default().fg(color_preview).bg(color_preview)),
+                    Cell::from(hex.clone()).style(
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Cell::from("██████").style(Style::default().fg(on_preview).bg(on_preview)),
+                    Cell::from(on_hex).style(Style::default().fg(Color::White)),
+                    Cell::from(contrast_label).style(Style::default().fg(Color::DarkGray)),
+                ])
+                .style(row_style),
+            );
         }
     }
 
@@ -358,7 +394,9 @@ fn render_palette_colors(f: &mut Frame, palette: &kanastra_palette_rs::ColorPale
             Constraint::Length(6),  // Step number
             Constraint::Length(18), // Color block
             Constraint::Length(9),  // Hex
-            Constraint::Length(20), // RGB
+            Constraint::Length(8),  // On color swatch
+            Constraint::Length(9),  // On color hex
+            Constraint::Length(14), // Contrast and WCAG rating
         ],
     )
     .block(block)

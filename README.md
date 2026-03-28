@@ -12,12 +12,14 @@ A blazing-fast terminal color palette generator built with Rust and Ratatui. Gen
 - **OKLCH color space** for superior perceptual uniformity
 - **Dynamic lightness and chroma curves** for natural-looking palettes
 - **Hue shifting** for more vibrant color scales
+- **WCAG contrast hints** with suggested `on-primary` foreground tokens
 
 ### 🚀 Modern Export Formats
 - **CSS Custom Properties** with RGB values for alpha support
+- **Design Tokens JSON** for token pipelines and multi-platform systems
 - **Tailwind CSS v3** - Traditional JS config format
 - **Tailwind CSS v4** - New CSS `@theme` format with real OKLCH tokens
-- **JSON** with hex, RGB, HSL, and OKLCH color spaces
+- **JSON** with hex, RGB, HSL, OKLCH, and accessibility metadata
 - **Automation-friendly CLI** with `stdout` and file export support
 
 ### 💻 Beautiful Terminal UI
@@ -69,6 +71,7 @@ cargo install --path .
 
 4. **Export your palette**:
    - `[C]` - CSS Variables
+   - `[D]` - Design Tokens JSON
    - `[3]` - Tailwind v3
    - `[4]` - Tailwind v4
    - `[J]` - JSON
@@ -91,6 +94,9 @@ cargo run -- --color "#FF6B6B"
 # Print CSS tokens to stdout
 cargo run -- --color "#FF6B6B" --format css
 
+# Print design tokens JSON
+cargo run -- --color "#FF6B6B" --format design-tokens
+
 # Write Tailwind v4 tokens to a file
 cargo run -- --color "#FF6B6B" --format tailwind-v4 --out ./palette.css
 
@@ -107,6 +113,7 @@ By default, the input color is preserved at step `500`. If you override `--base-
 | `Enter` | Generate palette |
 | `Tab` | Random color |
 | `C` | Export CSS |
+| `D` | Export Design Tokens |
 | `3` | Export Tailwind v3 |
 | `4` | Export Tailwind v4 |
 | `J` | Export JSON |
@@ -125,6 +132,8 @@ By default, the input color is preserved at step `500`. If you override `--base-
   /* ... */
   --color-primary: var(--color-primary-500);
   --color-primary-rgb: var(--color-primary-500-rgb);
+  --color-on-primary: #ffffff;
+  --color-on-primary-rgb: 255 255 255;
 }
 ```
 
@@ -141,10 +150,26 @@ module.exports = {
           500: '#7953e0',
           DEFAULT: '#7953e0',
         },
+        'on-primary': '#ffffff',
       },
     },
   },
 };
+```
+
+### Design Tokens JSON
+```json
+{
+  "color": {
+    "primary": {
+      "500": { "$value": "#7953e0", "$type": "color" }
+    },
+    "semantic": {
+      "primary": { "$value": "{color.primary.500}", "$type": "color" },
+      "on-primary": { "$value": "#ffffff", "$type": "color" }
+    }
+  }
+}
 ```
 
 ### Tailwind CSS v4
@@ -156,6 +181,7 @@ module.exports = {
   --color-primary-100: oklch(0.936 0.062 305.4); /* #e2d9ff */
   /* ... */
   --color-primary: var(--color-primary-500);
+  --color-on-primary: oklch(1.000 0.000 0.000); /* #ffffff 6.43:1 AA */
 }
 ```
 
@@ -163,14 +189,22 @@ module.exports = {
 ```json
 {
   "name": "primary",
+  "defaultStep": 500,
   "colors": {
     "50": {
       "hex": "#f0ebff",
       "rgb": { "r": 240, "g": 235, "b": 255 },
       "hsl": { "h": "255", "s": "100.0", "l": "96.1" },
-      "oklch": { "l": "0.978", "c": "0.031", "h": "305.2" }
+      "oklch": { "l": "0.978", "c": "0.031", "h": "305.2" },
+      "accessibility": {
+        "recommendedForeground": { "hex": "#000000", "rating": "AAA" }
+      }
     },
     // ...
+  },
+  "semanticTokens": {
+    "primary": { "step": 500, "hex": "#7953e0" },
+    "on-primary": { "hex": "#ffffff", "rating": "AA" }
   }
 }
 ```

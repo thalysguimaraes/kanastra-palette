@@ -1,3 +1,4 @@
+pub mod accessibility;
 pub mod palette;
 
 use ::palette::rgb::Srgb;
